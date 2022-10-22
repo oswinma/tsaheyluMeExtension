@@ -1,0 +1,95 @@
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link href="css/popup.css" type="text/css" rel="stylesheet" />
+    <script src="js/libs/jquery.min.js" type="text/javascript"></script>
+    <script src="js/libs/jquery.timeago.js" type="text/javascript"></script>
+    <script src="js/utils.js" type="text/javascript"></script>
+    <script src='js/popup.js' type="text/javascript"></script>
+</head>
+
+<body>
+    <div id="main">
+        <div>
+            <div id="logo">
+                <a href="http://www.tsahaylu.com" target="_blank" title="Tsahaylu Website">
+					<img src="/images/llogo.png">
+				</a>
+            </div>
+            <ul class="nav_tabs">
+                <li class="active"><a class="tab_send" href="#">Share</a></li>
+                <li><a class="tab_nty" href="#" >Notify</a></li>
+                <li><a class="tab_com" href="#" >Comments</a></li>
+                <div class="clear"></div>
+            </ul>
+            <div class="clear"></div>
+        </div>
+        <div class="nav" id="nav_nty">
+            <div class="ui_content">
+                <ul id="msg_box">
+                </ul>
+            </div>
+        </div>
+        <div class="nav ui_display" id="nav_send">
+            <div class="ui_content">
+                <div class="link_info">
+                    <input id="link_title" class="link_input" type="text" placeholder="Link title">
+                </div>
+                <div class="link_info">
+                    <input id="link_url" class="link_input" type="text" placeholder="Link url">
+                </div>
+                <h4>Option:</h4>
+                <ul id="option_box">
+                </ul>
+                <h4>Group List: </h4>
+                <ul id="group_box">
+                </ul>
+                <div class="send_fun">
+                    <div class="StandardBtn orange send disable">Send</div>
+                    <div class="StandardBtn gray cancel">Cancel</div>
+                </div>
+                <div class="error_msg">
+                </div>
+                <div class="clear"></div>
+            </div>
+        </div>
+        <div class="nav" id="nav_com">
+            <div class="ui_content">
+                <div class="add_com" style="display: block;">
+                    <div class="add" tabindex="0" role="button">Add a comment...</div>
+                    <div class="editor_outer">
+                        <a class="commenter" aria-hidden="true" target="_blank"><img alt=""></a>
+                        <div class="editor">
+                            <div class="editor_inner">
+                                <div class="editor_line" g_editable="true" role="textbox" contenteditable="plaintext-only"></div>
+                            </div>
+                        </div>
+                        <div class="fun_button">
+                            <div role="button" class="StandardBtn orange post disable">Post</div>
+                            <div role="button" class="StandardBtn gray cancel">Cancel</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="comments" style="display: block;">
+                    <div class="fun_button">
+                        <div role="button" class="frd disable">Recent comments from friends</div>
+                        <div role="button" class="pub enable">Recent public comments</div>
+                        <div class="clear"></div>
+                    </div>
+                    <div class="com_list">
+                        <ul class="com_box_frd">
+                        </ul>
+                        <div id="more">
+                            <a class="more" target="_blank">More comments...</a>
+                        </div>
+                        <div class="clear"></div>
+                    </div>
+                </div>
+                <div class="clear"></div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

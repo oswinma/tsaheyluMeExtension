@@ -1,0 +1,40 @@
+*{
+	margin:0;
+	padding:0;
+	font-family:MuseoSansCyrl-500;
+	font-size:14px;
+	color:#333;
+	list-style:none;
+	outline:none;
+	text-decoration:none;
+}
+.clear{
+	clear:both;
+}
+html{
+
+}
+#comButton{
+    /*background-color: #E46C0A;*/
+    /*position: fixed;*/
+    background-size: 24px 24px;
+/*    bottom: 32px;
+    right: 32px;*/
+    border: none;
+    border-radius: 50%;
+    box-shadow: 0 6px 10px 0 rgba(0,0,0,0.3);
+    cursor: pointer;
+    display: inline-block;
+    height: 56px;
+    outline: none;
+    text-align: center;
+    width: 56px;
+    z-index: 2;
+    transform: rotateY(0deg);
+}
+#comButton img{
+    width: 40px;
+    height: 40px;
+    padding-top: 8px;
+    padding-left: 1px;
+}

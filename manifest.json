@@ -1,0 +1,59 @@
+﻿{
+  "manifest_version": 3,
+  "name": "Tsaheylu:",
+  "version": "1.0.0",
+  "description": "Tsaheylu: Share this Link",
+  "homepage_url": "https://tsaheylu.me",
+  "icons": {
+    "128": "images/tsahaylu-128.png",
+    "16": "images/tsahaylu-16.png",
+    "48": "images/tsahaylu-48.png"
+  },
+  "background": {
+    "service_worker": "js/background.js",
+    "type": "module"
+  },
+  "permissions": ["storage", "tabs", "scripting"],
+  "host_permissions": ["http://localhost:4200/*", "http://*/", "https://*/"],
+  "optional_host_permissions": ["*://*/*"],
+  "options_page": "options.html",
+  "action": {
+    "default_icon": "images/notlogin.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:4200/*"],
+      "js": ["js/content.js"]
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["js/inject.js"],
+      "run_at": "document_end"
+    }
+  ],
+
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "commentFrame.html",
+        "buttonFrame.html",
+        "overlayFrame.html",
+        "css/iframe.css"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "externally_connectable": {
+    "matches": ["http://localhost:4200/*", "http://*/", "https://*/"]
+  },
+  "content_security_policy": {
+    "script-src": [
+      "self",
+      "unsafe-eval",
+      "https://tsaheylu.me",
+      "https://talkgadget.google.com",
+      " https://www.gstatic.com https://*.firebaseio.com"
+    ],
+    " object-src": ["self"]
+  }
+}
