@@ -7,6 +7,8 @@ var login = false;
 var online = false;
 var setupChannelConTask = null;
 var access_token = null;
+var userId = null;
+
 const AUTH_URL = "http://localhost:4200/";
 const HOST = "http://localhost:4200";
 const notLoginIcon = "/images/notlogin.png";
@@ -233,7 +235,7 @@ function normal() {
     // getMsgs();
     getUnreadMsgCount();
     // getGroups();
-    // setupFirebaseChannel();
+    setupFirebaseChannel();
     getUserInfo();
     setbuttonsend();
   } else {
@@ -279,10 +281,8 @@ function getMsgs() {
 
 function extractJson(data) {
   // var maxnumber = localStorage["maxtabnumber"];
-
-  chrome.storage.local.get("maxtabnumber", function (result) {
-    maxnumber = result["maxtabnumber"];
-  });
+  var maxnumber = chrome.storage.sync.get("maxtabnumber");
+  var maxnumber = 20;
 
   var favurlshows = data.FavURLShows;
 
@@ -382,39 +382,102 @@ function getLocalSendTime(sendtime) {
 function getFirebaseChannelToken() {
   log("getFirebaseChannelToken");
 
-  if (channelToken == null) {
-    $.ajax({
-      type: "post",
-      url: host + "/api/service/channel",
-      datatype: "text",
-      // async: false,
-      success: function (data) {
-        if (data) {
-          channelToken = data;
-          // localStorage["channelToken"] = channelToken;
+  const myHeaders = new Headers();
+  myHeaders.append("Authorization", access_token);
 
-          chrome.storage.local.set({ channelToken: channelToken }, function () {
-            log("channelToken is set to " + channelToken);
-          });
-          setupFirebaseChannelCon();
-        }
-      },
+  fetch(HOST + "/api/services/channel", { headers: myHeaders })
+    .then((r) => r.text())
+    .then((result) => {
+      if (result) {
+        channelToken = result;
+
+        chrome.storage.sync.set({ channelToken: channelToken });
+
+        setupFirebaseChannelCon();
+      }
     });
-  }
 }
 
-// initFirebase();
+// import { initializeApp, setLogLevel } from "/firebase/firebase-app.js";
+// import { getAuth, signInWithCustomToken } from "/firebase/firebase-auth.js";
+// import { getDatabase, ref, onValue } from "/firebase/firebase-database.js";
+// var firebase;
 
-function initFirebase() {
-  var config = {
+self.importScripts(
+  "/firebase/firebase-app-8.js",
+  "/firebase/firebase-auth-8.js",
+  "/firebase/firebase-database-8.js"
+);
+// initFirebase();
+function initFirebase8() {
+  const firebaseConfig = {
     apiKey: "AIzaSyBjTrt683TsU0iiUsqCUQQerSZlY6prVY8",
     authDomain: "tsahayluapp.firebaseapp.com",
     databaseURL: "https://tsahayluapp.firebaseio.com",
     projectId: "tsahayluapp",
     storageBucket: "tsahayluapp.appspot.com",
     messagingSenderId: "920446357904",
+    appId: "1:920446357904:web:a386380b319fd7b34e6315",
+    measurementId: "G-ML9C67840E",
   };
-  firebase.initializeApp(config);
+
+  firebase.initializeApp(firebaseConfig);
+  // firebase.enableLogging(true);
+} // Initialize Firebase
+
+function initFirebase() {
+  /*   const firebaseConfig = {
+    apiKey: "AIzaSyBjTrt683TsU0iiUsqCUQQerSZlY6prVY8",
+    authDomain: "tsahayluapp.firebaseapp.com",
+    databaseURL: "https://tsahayluapp.firebaseio.com",
+    projectId: "tsahayluapp",
+    storageBucket: "tsahayluapp.appspot.com",
+    messagingSenderId: "920446357904",
+    appId: "1:920446357904:web:a386380b319fd7b34e6315",
+    measurementId: "G-ML9C67840E",
+  };
+
+  firebase = initializeApp(firebaseConfig);
+ */
+  const firebaseConfig = {
+    apiKey: "AIzaSyBjTrt683TsU0iiUsqCUQQerSZlY6prVY8",
+    authDomain: "tsahayluapp.firebaseapp.com",
+    databaseURL: "https://tsahayluapp.firebaseio.com",
+    projectId: "tsahayluapp",
+    storageBucket: "tsahayluapp.appspot.com",
+    messagingSenderId: "920446357904",
+    appId: "1:920446357904:web:a386380b319fd7b34e6315",
+    measurementId: "G-ML9C67840E",
+  };
+
+  setLogLevel("debug");
+  const app = initializeApp(firebaseConfig);
+  console.log("initializeApp");
+
+  const auth = getAuth(app);
+  const channelToken =
+    "eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJodHRwczovL2lkZW50aXR5dG9vbGtpdC5nb29nbGVhcGlzLmNvbS9nb29nbGUuaWRlbnRpdHkuaWRlbnRpdHl0b29sa2l0LnYxLklkZW50aXR5VG9vbGtpdCIsImNsYWltcyI6eyJzaWdudXB0aW1lIjp7fX0sImV4cCI6MTY2NjQ5OTU1NCwiaWF0IjoxNjY2NDk1OTU0LCJpc3MiOiJmaXJlYmFzZS1hZG1pbnNkay02MDRma0B0c2FoYXlsdWFwcC5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsInN1YiI6ImZpcmViYXNlLWFkbWluc2RrLTYwNGZrQHRzYWhheWx1YXBwLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwidWlkIjoiNTAwMSJ9.gHM1FRgii0ABi384RzqtewUT6PvLxY71yoqkIl1YyCZMU_MTtK18ohVkqDw1FtTudsfpZcXx2N9HGiDfYuNHVwI6S-s7RgFo2C5i6zlNF2NzuOuNJuzjXgbxaHbQIhdrQiDaFyz8hVOtzGYRlVeRdAYiv-F0DnRvgtvAd4iyd4V4tmBI5mLQlSyS8F1hjwrDOq-bk_XIo8lGtmleKycfM2nskR-sHN2uJGgBOS1WJP5w-Mz2Y6GQOO8F7v2gPRXPiJ9J-OuwDhcCGW-xJ5NC6ursiwerjD7mSLukmDShAsGkpdoToN6mqXsS6P1CjJYS9RZ2Zzf6GqFZiMa-QcBo9A";
+  signInWithCustomToken(auth, channelToken)
+    .then((userCredential) => {
+      // Signed in
+      const user = userCredential.user;
+      console.log(user);
+      // ...
+    })
+    .catch((error) => {
+      const errorCode = error.code;
+      console.log(error);
+      const errorMessage = error.message;
+      // ...
+    });
+
+  const database = getDatabase(app);
+  const FirebaseChannel = ref(database, "channels/5001");
+  onValue(FirebaseChannel, (snapshot) => {
+    const data = snapshot.val();
+    console.log(data);
+  });
+
   // firebase.enableLogging(true);
 } // Initialize Firebase
 
@@ -437,17 +500,20 @@ function setupFirebaseChannelCon() {
           console.log("Error message: ", error.message);
           // localStorage.removeItem("channelToken");
 
-          chrome.storage.local.removeItem("channelToken", function () {
-            console.log("chrome storge local remove channelToken");
-          });
+          // chrome.storage.local.removeItem("channelToken", function () {
+          //   console.log("chrome storge local remove channelToken");
+          // });
 
           channelToken = null;
+          chrome.storage.sync.set({ channelToken: channelToken });
+
           setuping = false;
           isErrProcessing = false;
           FirebaseOnChannelErrHandler();
         });
 
-      FirebaseChannel = firebase.database().ref("channels/" + curemail);
+      FirebaseChannel = firebase.database().ref("channels/" + userId);
+
       // add a listener to the path that fires any time the value of the data changes
       // socket = channel.open();
       // socket.onopen = channelonOpened;
@@ -490,8 +556,10 @@ function initPingGoogle() {
 
 function setupFirebaseChannel() {
   log("setupFirebaseChannel");
-  // getFirebaseChannelToken();
-  initPingGoogle();
+
+  initFirebase8();
+  getFirebaseChannelToken();
+  // initPingGoogle();
   /*    if (isGoogleCon) {
             channelOpened = false;
             setupChannelConTask = setInterval(setupFirebaseChannelCon(), 10000);
@@ -562,7 +630,7 @@ function FirebasechannelonMessage(msg) {
   var msgnum = msg.MsgNum;
   var newgroups = msg.Groups;
 
-  if (FavURLShows) {
+  if (FavURLDtoList) {
     log("channel msg: FavURLs");
     extractJson(msg);
   } else {
@@ -901,6 +969,7 @@ function getUserInfo() {
         var userinfo = result.data;
 
         chrome.storage.sync.set({ userId: userinfo.id });
+        userId = userinfo.id;
 
         var avatarURL = userinfo.avatarURL;
         if (avatarURL == null) avatarURL = host + "/images/mystery-man.jpg";

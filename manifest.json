@@ -10,11 +10,19 @@
     "48": "images/tsahaylu-48.png"
   },
   "background": {
-    "service_worker": "js/background.js",
-    "type": "module"
+    "service_worker": "js/background.js"
   },
   "permissions": ["storage", "tabs", "scripting"],
-  "host_permissions": ["http://localhost:4200/*", "http://*/", "https://*/"],
+  "host_permissions": [
+    "http://localhost:4200/*",
+    "https://*.firebaseio.com/*",
+    "https://*.googleapis.com/*",
+    "wss://*.firebaseio.com/*",
+    "https://*.gstatic.com/*",
+    "https://*.google.com/*",
+    "http://*/",
+    "https://*/"
+  ],
   "optional_host_permissions": ["*://*/*"],
   "options_page": "options.html",
   "action": {
@@ -44,7 +52,16 @@
     }
   ],
   "externally_connectable": {
-    "matches": ["http://localhost:4200/*", "http://*/", "https://*/"]
+    "matches": [
+      "http://localhost:4200/*",
+      "https://*.firebaseio.com/*",
+      "https://*.googleapis.com/*",
+      "wss://*.firebaseio.com/*",
+      "https://*.gstatic.com/*",
+      "https://*.google.com/*",
+      "http://*/",
+      "https://*/"
+    ]
   },
   "content_security_policy": {
     "script-src": [
@@ -52,7 +69,12 @@
       "unsafe-eval",
       "https://tsaheylu.me",
       "https://talkgadget.google.com",
-      " https://www.gstatic.com https://*.firebaseio.com"
+      "https://*.googleapis.com/*",
+      "https://*.gstatic.com/*",
+      "wss://*.firebaseio.com/*",
+      "https://www.gstatic.com",
+      "https://*.firebaseio.com",
+      "https://*.google.com/*"
     ],
     " object-src": ["self"]
   }
