@@ -671,7 +671,7 @@ else {
         },
         addRequestListener: function(listener) {
             if (this.isChrome()) {
-                chrome.extension.onMessage.addListener(listener);
+                chrome.runtime.onMessage.addListener(listener);
             } else if (this.isSafari()) {
                 window.safari.self.addEventListener("message", function(thingy) {
                     listener(thingy.message, thingy);
@@ -680,8 +680,8 @@ else {
         },
         sendRequest: function(message, cb) {
             if (this.isChrome()) {
-                if (window.chrome.extension.sendMessage) {
-                    window.chrome.extension.sendMessage(message, cb);
+                if (window.chrome.runtime.sendMessage) {
+                    window.chrome.runtime.sendMessage(message, cb);
                 } else {
                     window.chrome.extension.sendRequest(message, cb);
                 }

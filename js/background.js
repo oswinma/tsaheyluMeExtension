@@ -14,6 +14,11 @@ const HOST = "http://localhost:4200";
 const notLoginIcon = "/images/notlogin.png";
 const loginIcon = "/images/login.png";
 
+log("background page");
+
+restore_options();
+init();
+
 function init() {
   log("init");
   const options = {};
@@ -98,11 +103,6 @@ function getCurLocalTime() {
   });
   return sendtime;
 }
-
-log("background page");
-
-restore_options();
-init();
 
 function restore_options() {
   // if (localStorage["maxtabnumber"] == null)
@@ -235,7 +235,6 @@ function normal() {
     // getMsgs();
     getUnreadMsgCount();
     // getGroups();
-    setupFirebaseChannel();
     getUserInfo();
     setbuttonsend();
   } else {
@@ -260,26 +259,17 @@ function getUnreadMsgCount() {
 }
 
 function getMsgs() {
-  log("getMsgs");
-  $.ajax({
-    type: "get",
-    url: host + "/api/favurl/pending",
-    dataType: "json",
-    success: function (data) {
-      if (data) extractJson(data);
-    },
-  });
+  log("get pending favurl");
 
   headers = new Headers([["Authorization", access_token]]);
-
-  fetch(HOST + "/api/favurl/pending", { headers })
-    .then((r) => r.text())
+  fetch(HOST + "/api/favurls/pending", { headers })
+    .then((r) => r.json())
     .then((result) => {
-      // Result now contains the response text, do what you want...
+      if (result.data) processFavURLDtoList(result.data);
     });
 }
 
-function extractJson(data) {
+function processFavURLDtoList(data) {
   // var maxnumber = localStorage["maxtabnumber"];
   var maxnumber = chrome.storage.sync.get("maxtabnumber");
   var maxnumber = 20;
@@ -294,8 +284,8 @@ function extractJson(data) {
       var channel = "WEB";
       var i = 0;
 
-      for (j in favURLDtoList) {
-        log("j: " + j);
+      for (id in favURLDtoList) {
+        log("id: " + id);
         log("i: " + i);
 
         curtabnumber = initcurtabnumber + i;
@@ -305,10 +295,9 @@ function extractJson(data) {
         }
         log("channel: " + channel);
 
-        sid = favURLDtoList[j].id;
-        updateChannel(sid, channel);
+        updateChannel(id, channel);
 
-        log("favurl msg: " + sid);
+        log("favurl msg: " + id);
 
         i = i + 1;
       }
@@ -319,58 +308,6 @@ function extractJson(data) {
 function updateChannel(sid, channel) {
   log("updateChannel sid=" + sid);
   log("updateChannel channel=" + channel);
-
-  /*  $.ajax({
-    type: "post",
-    data: {
-      id: sid,
-      channel: channel,
-    },
-    url: host + "/api/favurl/channel",
-    dataType: "json",
-    success: function (json) {
-      if (json) {
-        json = json.FavURLNotify;
-        var nickname = json.nickname;
-        var surl = json.url;
-        var sendtime = getLocalSendTime(json.sendtime);
-        sendtime = jQuery.timeago(sendtime);
-        var avatarurl = json.avatarURL;
-
-        if (avatarurl == null) avatarurl = host + "/images/mystery-man.jpg";
-
-        var userid = json.fromid;
-
-        log("updatehandler");
-
-        chrome.tabs.create(
-          {
-            url: surl,
-            active: false,
-          },
-          function (tab) {
-            chrome.tabs.executeScript(
-              tab.id,
-              {
-                file: "js/ReceiveMSG.js",
-              },
-              function () {
-                chrome.tabs.sendMessage(tab.id, {
-                  status: "success",
-                  nickname: nickname,
-                  sendtime: sendtime,
-                  avatarurl: avatarurl,
-                  userid: userid,
-                });
-              }
-            );
-          }
-        );
-
-        log("tab created");
-      }
-    },
-  }); */
 
   const myHeaders = new Headers();
   myHeaders.append("Authorization", access_token);
@@ -406,10 +343,10 @@ function updateChannel(sid, channel) {
             active: false,
           },
           function (tab) {
-            chrome.tabs.executeScript(
-              tab.id,
+            chrome.scripting.executeScript(
               {
-                file: "js/ReceiveMSG.js",
+                target: { tabId: tab.id },
+                files: ["js/ReceiveMSG.js"],
               },
               function () {
                 chrome.tabs.sendMessage(tab.id, {
@@ -439,6 +376,8 @@ function getLocalSendTime(sendtime) {
 function getFirebaseChannelToken() {
   log("getFirebaseChannelToken");
 
+  channelToken = chrome.storage.sync.set({ channelToken: channelToken });
+
   const myHeaders = new Headers();
   myHeaders.append("Authorization", access_token);
 
@@ -447,9 +386,7 @@ function getFirebaseChannelToken() {
     .then((result) => {
       if (result) {
         channelToken = result;
-
         chrome.storage.sync.set({ channelToken: channelToken });
-
         setupFirebaseChannelCon();
       }
     });
@@ -460,25 +397,56 @@ function getFirebaseChannelToken() {
 // import { getDatabase, ref, onValue } from "/firebase/firebase-database.js";
 // var firebase;
 
+function setupFirebase() {
+  log("setup Firebase ");
+
+  initFirebase8();
+
+  chrome.storage.sync.get("channelToken", (result) => {
+    channelToken = result.channelToken;
+    console.log(channelToken);
+    if (channelToken != null && channelToken != "") {
+      setupFirebaseChannelCon();
+    } else {
+      getFirebaseChannelToken();
+    }
+    // optionsForm.debug.checked = Boolean(options.debug);
+  });
+
+  // initPingGoogle();
+  // if (isGoogleCon) {
+  //   channelOpened = false;
+  //   setupChannelConTask = setInterval(setupFirebaseChannelCon(), 10000);
+  //   setbuttonsend();
+  // } else {
+  //   setOfflineIcon();
+  //   setNotifyPopup("discongoogle.html");
+  //   googleCheck = setInterval(connectGoogle, 10000);
+  // }
+}
+
 self.importScripts(
   "/firebase/firebase-app-8.js",
   "/firebase/firebase-auth-8.js",
   "/firebase/firebase-database-8.js"
 );
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBjTrt683TsU0iiUsqCUQQerSZlY6prVY8",
+  authDomain: "tsahayluapp.firebaseapp.com",
+  databaseURL: "https://tsahayluapp.firebaseio.com",
+  projectId: "tsahayluapp",
+  storageBucket: "tsahayluapp.appspot.com",
+  messagingSenderId: "920446357904",
+  appId: "1:920446357904:web:a386380b319fd7b34e6315",
+  measurementId: "G-ML9C67840E",
+};
+
 // initFirebase();
 function initFirebase8() {
-  const firebaseConfig = {
-    apiKey: "AIzaSyBjTrt683TsU0iiUsqCUQQerSZlY6prVY8",
-    authDomain: "tsahayluapp.firebaseapp.com",
-    databaseURL: "https://tsahayluapp.firebaseio.com",
-    projectId: "tsahayluapp",
-    storageBucket: "tsahayluapp.appspot.com",
-    messagingSenderId: "920446357904",
-    appId: "1:920446357904:web:a386380b319fd7b34e6315",
-    measurementId: "G-ML9C67840E",
-  };
-
-  firebase.initializeApp(firebaseConfig);
+  if (firebase.apps.length < 1) {
+    firebase.initializeApp(firebaseConfig);
+  }
   // firebase.enableLogging(true);
 } // Initialize Firebase
 
@@ -542,16 +510,25 @@ var FirebaseChannel = null;
 
 function setupFirebaseChannelCon() {
   log("setupFirebaseChannelCon");
-
   if (!channelOpened) {
     if (!setuping) {
       setuping = true;
-      // isGoogleCon = false;
-      // var  channel = new goog.appengine.Channel(channelToken);
 
       firebase
         .auth()
         .signInWithCustomToken(channelToken)
+        .then((userCredential) => {
+          // Signed in
+          var user = userCredential.user;
+          FirebaseChannel = firebase.database().ref("channels/" + userId);
+          FirebaseChannel.on("value", function (data) {
+            if (data.val() != null) {
+              FirebasechannelonMessage(data.val());
+            }
+          });
+          channelOpened = true;
+          console.log("firebase channel opened");
+        })
         .catch(function (error) {
           console.log("Login Failed!", error.code);
           console.log("Error message: ", error.message);
@@ -569,20 +546,7 @@ function setupFirebaseChannelCon() {
           FirebaseOnChannelErrHandler();
         });
 
-      FirebaseChannel = firebase.database().ref("channels/" + userId);
-
-      // add a listener to the path that fires any time the value of the data changes
-      // socket = channel.open();
-      // socket.onopen = channelonOpened;
-      // socket.onmessage = channelonMessage;
-      FirebaseChannel.on("value", function (data) {
-        if (data.val() != null) {
-          FirebasechannelonMessage(data.val());
-        }
-      });
-
-      // socket.onerror = channelonError;
-      // socket.onclose = channelonClose;
+      setuping = false;
     }
   }
 }
@@ -609,23 +573,6 @@ function initPingGoogle() {
       }
     },
   });
-}
-
-function setupFirebaseChannel() {
-  log("setupFirebaseChannel");
-
-  initFirebase8();
-  getFirebaseChannelToken();
-  // initPingGoogle();
-  /*    if (isGoogleCon) {
-            channelOpened = false;
-            setupChannelConTask = setInterval(setupFirebaseChannelCon(), 10000);
-            setbuttonsend();
-        } else {
-            setOfflineIcon();
-            setNotifyPopup("discongoogle.html");
-            googleCheck = setInterval(connectGoogle, 10000);
-        }*/
 }
 
 function tryPingGoogle() {
@@ -689,7 +636,7 @@ function FirebasechannelonMessage(msg) {
 
   if (FavURLDtoList) {
     log("channel msg: FavURLs");
-    extractJson(msg);
+    processFavURLDtoList(msg);
   } else {
     if (msgnum) {
       log("channel msg: MsgNum");
@@ -984,6 +931,9 @@ function sendURLRequest(tome, toall, groupids, surl, tabid, urltitle, iconurl) {
       if (result) {
         chrome.tabs.sendMessage(tabid, { status: "sentsuccess" });
       }
+    })
+    .catch((error) => {
+      console.log("error", error);
     });
 }
 
@@ -1030,6 +980,7 @@ function getUserInfo() {
 
         var avatarURL = userinfo.avatarURL;
         if (avatarURL == null) avatarURL = host + "/images/mystery-man.jpg";
+        setupFirebase();
       }
     });
 }
