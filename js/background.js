@@ -284,7 +284,7 @@ function extractJson(data) {
   var maxnumber = chrome.storage.sync.get("maxtabnumber");
   var maxnumber = 20;
 
-  var favurlshows = data.FavURLShows;
+  var favURLDtoList = data.FavURLDtoList;
 
   chrome.tabs.query(
     { windowId: chrome.windows.WINDOW_ID_CURRENT },
@@ -294,7 +294,7 @@ function extractJson(data) {
       var channel = "WEB";
       var i = 0;
 
-      for (j in favurlshows) {
+      for (j in favURLDtoList) {
         log("j: " + j);
         log("i: " + i);
 
@@ -305,7 +305,7 @@ function extractJson(data) {
         }
         log("channel: " + channel);
 
-        sid = favurlshows[j].id;
+        sid = favURLDtoList[j].id;
         updateChannel(sid, channel);
 
         log("favurl msg: " + sid);
@@ -320,7 +320,7 @@ function updateChannel(sid, channel) {
   log("updateChannel sid=" + sid);
   log("updateChannel channel=" + channel);
 
-  $.ajax({
+  /*  $.ajax({
     type: "post",
     data: {
       id: sid,
@@ -370,12 +370,69 @@ function updateChannel(sid, channel) {
         log("tab created");
       }
     },
-  });
+  }); */
+
+  const myHeaders = new Headers();
+  myHeaders.append("Authorization", access_token);
+
+  const params = {
+    id: sid,
+    channel: channel,
+  };
+
+  var url = new URL(HOST + "/api/favurls/channel");
+
+  url.search = new URLSearchParams(params).toString();
+
+  fetch(url, { method: "PATCH", headers: myHeaders })
+    .then((r) => r.json())
+    .then((result) => {
+      if (result.data) {
+        favurl = result.data;
+        var nickname = favurl.nickname;
+        var surl = favurl.url;
+        var sendtime = getLocalSendTime(favurl.sendtime);
+        var avatarurl = favurl.avatarURL;
+
+        if (avatarurl == null) avatarurl = host + "/images/mystery-man.jpg";
+
+        var userid = favurl.fromid;
+
+        log("updatehandler");
+
+        chrome.tabs.create(
+          {
+            url: surl,
+            active: false,
+          },
+          function (tab) {
+            chrome.tabs.executeScript(
+              tab.id,
+              {
+                file: "js/ReceiveMSG.js",
+              },
+              function () {
+                chrome.tabs.sendMessage(tab.id, {
+                  status: "success",
+                  nickname: nickname,
+                  sendtime: sendtime,
+                  avatarurl: avatarurl,
+                  userid: userid,
+                });
+              }
+            );
+          }
+        );
+
+        log("tab created");
+      }
+    });
 }
 
 function getLocalSendTime(sendtime) {
   var d = new Date(sendtime);
-  var sendtime = d.format("yyyy-MM-dd hh:mm:ss");
+  var sendtime = d.toLocaleTimeString();
+
   return sendtime;
 }
 
@@ -601,7 +658,7 @@ var conCheck;
 
 function reConnect() {
   log("retry connect");
-  if (window.navigator.onLine == true) {
+  if (navigator.onLine == true) {
     clearInterval(conCheck);
     removePopup();
 
@@ -626,7 +683,7 @@ function FirebasechannelonOpened() {
 
 function FirebasechannelonMessage(msg) {
   // var msg=JSON.parse(msg.data);
-  var FavURLShows = msg.FavURLShows;
+  var FavURLDtoList = msg.FavURLDtoList;
   var msgnum = msg.MsgNum;
   var newgroups = msg.Groups;
 
@@ -680,7 +737,7 @@ function FirebaseChannelOnClose() {
 function FirebaseOnChannelErrHandler() {
   if (!isErrProcessing) {
     isErrProcessing = true;
-    if (window.navigator.onLine == true) {
+    if (navigator.onLine == true) {
       log("channel setup error");
       closeFirebaseChannel();
       setupFirebaseChannel();
