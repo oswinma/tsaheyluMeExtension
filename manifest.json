@@ -30,7 +30,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["http://localhost:4200/*"],
+      "matches": ["http://localhost:4200/mylist/new"],
       "js": ["js/content.js"]
     },
     {

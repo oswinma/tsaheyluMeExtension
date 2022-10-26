@@ -7,12 +7,19 @@ var login = false;
 var online = false;
 var setupChannelConTask = null;
 var access_token = null;
+var refreshToken = null;
 var userId = null;
 
 const AUTH_URL = "http://localhost:4200/";
 const HOST = "http://localhost:4200";
 const notLoginIcon = "/images/notlogin.png";
 const loginIcon = "/images/login.png";
+
+const FAVURl_STATUS = {
+  PENDING: 0,
+  NEW: 1,
+  PENDING: 0,
+};
 
 log("background page");
 
@@ -35,20 +42,15 @@ function init() {
       normal();
       updateIcon();
     } else {
-      {
-        chrome.tabs.create({
-          url: AUTH_URL,
-          active: false,
-        });
-      }
+      setbuttonplslogin();
     }
     // optionsForm.debug.checked = Boolean(options.debug);
   });
 }
 
 chrome.runtime.onMessage.addListener(function (request, sender, callback) {
-  if (request.action == "login") {
-    checkLoginStatus(request.access_token);
+  if (request.action == "login" && login == false) {
+    checkLoginStatus(request);
   }
 
   if (request.action == "logoff") {
@@ -73,17 +75,21 @@ chrome.runtime.onMessage.addListener(function (request, sender, callback) {
   // }
 });
 
-function checkLoginStatus(access_token) {
+function checkLoginStatus(request) {
+  log("checkLoginStatus");
+
+  access_token = request.access_token;
+  refreshToken = request.refreshToken;
+  log(request);
   if (access_token != null && access_token != "") {
     login = true;
     online = true;
     chrome.storage.sync.set({ access_token: access_token });
+    chrome.storage.sync.set({ refreshToken: refreshToken });
     normal();
     updateIcon();
   } else {
     logoff();
-    setbuttonplslogin();
-    updateIcon();
   }
 }
 
@@ -179,14 +185,12 @@ var currentTabIcon;
 function logoff() {
   log("background page log off");
   unreadCount = -1;
-  curemail = null;
-  // localStorage.removeItem("groups");
-
-  chrome.storage.local.removeItem("groups", function () {
-    console.log("chrome storge local remove groups");
-  });
-
   login = false;
+  login = false;
+
+  chrome.storage.sync.set({ refreshToken: null });
+  chrome.storage.sync.set({ access_token: null });
+  setbuttonplslogin();
   // closeFirebaseChannel();
   updateIcon();
 }
@@ -232,7 +236,7 @@ function redirectUnreadMsgPage() {
 function normal() {
   if (navigator.onLine == true) {
     log("normal");
-    // getMsgs();
+    getPendingFavurl();
     getUnreadMsgCount();
     // getGroups();
     getUserInfo();
@@ -245,10 +249,11 @@ function normal() {
 
 function getUnreadMsgCount() {
   log("getUnreadMsgCount");
-  const myHeaders = new Headers();
-  myHeaders.append("Authorization", access_token);
+  // const myHeaders = new Headers();
+  // myHeaders.append("Authorization", access_token);
+  var url = new URL(HOST + "/api/messages/unreadnum");
 
-  fetch(HOST + "/api/messages/unreadnum", { headers: myHeaders })
+  customFetcher(url)
     .then((r) => r.json())
     .then((result) => {
       if (result) {
@@ -258,23 +263,34 @@ function getUnreadMsgCount() {
     });
 }
 
-function getMsgs() {
+function getPendingFavurl() {
   log("get pending favurl");
 
-  headers = new Headers([["Authorization", access_token]]);
-  fetch(HOST + "/api/favurls/pending", { headers })
+  // const myHeaders = new Headers();
+  // myHeaders.append("Authorization", access_token);
+
+  const params = {
+    status: FAVURl_STATUS.PENDING,
+    pageIndex: 0,
+    pageSize: 100,
+  };
+
+  var url = new URL(HOST + "/api/favurls");
+
+  url.search = new URLSearchParams(params).toString();
+
+  customFetcher(url)
     .then((r) => r.json())
     .then((result) => {
-      if (result.data) processFavURLDtoList(result.data);
+      if (result.data)
+        processFavURLDtoList(result.data.FavurlDtoList.map((x) => x.id));
     });
 }
 
-function processFavURLDtoList(data) {
+function processFavURLDtoList(favURLDtoList) {
   // var maxnumber = localStorage["maxtabnumber"];
   var maxnumber = chrome.storage.sync.get("maxtabnumber");
   var maxnumber = 20;
-
-  var favURLDtoList = data.FavURLDtoList;
 
   chrome.tabs.query(
     { windowId: chrome.windows.WINDOW_ID_CURRENT },
@@ -284,7 +300,9 @@ function processFavURLDtoList(data) {
       var channel = "WEB";
       var i = 0;
 
-      for (id in favURLDtoList) {
+      for (favurlDto in favURLDtoList) {
+        let id = favURLDtoList[favurlDto];
+
         log("id: " + id);
         log("i: " + i);
 
@@ -309,8 +327,8 @@ function updateChannel(sid, channel) {
   log("updateChannel sid=" + sid);
   log("updateChannel channel=" + channel);
 
-  const myHeaders = new Headers();
-  myHeaders.append("Authorization", access_token);
+  /*   const myHeaders = new Headers();
+  myHeaders.append("Authorization", access_token); */
 
   const params = {
     id: sid,
@@ -321,7 +339,8 @@ function updateChannel(sid, channel) {
 
   url.search = new URLSearchParams(params).toString();
 
-  fetch(url, { method: "PATCH", headers: myHeaders })
+  // fetch(url, { method: "PATCH", headers: myHeaders })
+  customFetcher(url, { method: "PATCH" })
     .then((r) => r.json())
     .then((result) => {
       if (result.data) {
@@ -331,7 +350,7 @@ function updateChannel(sid, channel) {
         var sendtime = getLocalSendTime(favurl.sendtime);
         var avatarurl = favurl.avatarURL;
 
-        if (avatarurl == null) avatarurl = host + "/images/mystery-man.jpg";
+        if (avatarurl == null) avatarurl = HOST + "/images/mystery-man.jpg";
 
         var userid = favurl.fromid;
 
@@ -378,10 +397,11 @@ function getFirebaseChannelToken() {
 
   channelToken = chrome.storage.sync.set({ channelToken: channelToken });
 
-  const myHeaders = new Headers();
-  myHeaders.append("Authorization", access_token);
+  // const myHeaders = new Headers();
+  // myHeaders.append("Authorization", access_token);
+  var url = new URL(HOST + "/api/services/channel");
 
-  fetch(HOST + "/api/services/channel", { headers: myHeaders })
+  customFetcher(url)
     .then((r) => r.text())
     .then((result) => {
       if (result) {
@@ -593,7 +613,7 @@ function tryPingGoogle() {
 
         online = true;
         setbuttonsend();
-        getMsgs();
+        getPendingFavurl();
         getUnreadMsgCount();
         updateIcon();
       },
@@ -610,7 +630,7 @@ function reConnect() {
     removePopup();
 
     online = true;
-    getMsgs();
+    getPendingFavurl();
     getUnreadMsgCount();
     updateIcon();
     setupFirebaseChannel();
@@ -636,7 +656,7 @@ function FirebasechannelonMessage(msg) {
 
   if (FavURLDtoList) {
     log("channel msg: FavURLs");
-    processFavURLDtoList(msg);
+    processFavURLDtoList(FavURLDtoList);
   } else {
     if (msgnum) {
       log("channel msg: MsgNum");
@@ -687,7 +707,7 @@ function FirebaseOnChannelErrHandler() {
     if (navigator.onLine == true) {
       log("channel setup error");
       closeFirebaseChannel();
-      setupFirebaseChannel();
+      getFirebaseChannelToken();
     } else {
       log("network disconnect");
       setOfflineIcon();
@@ -907,8 +927,8 @@ function sendURLRequest(tome, toall, groupids, surl, tabid, urltitle, iconurl) {
     });
   } */
 
-  const myHeaders = new Headers();
-  myHeaders.append("Authorization", access_token);
+  // const myHeaders = new Headers();
+  // myHeaders.append("Authorization", access_token);
 
   const params = {
     fromId: 5001,
@@ -925,7 +945,7 @@ function sendURLRequest(tome, toall, groupids, surl, tabid, urltitle, iconurl) {
 
   url.search = new URLSearchParams(params).toString();
 
-  fetch(url, { method: "POST", headers: myHeaders })
+  customFetcher(url, { method: "POST" })
     .then((r) => r.json())
     .then((result) => {
       if (result) {
@@ -966,10 +986,12 @@ function getUserInfo() {
   }); */
 
   log("getuserinfo");
-  const myHeaders = new Headers();
-  myHeaders.append("Authorization", access_token);
+  // const myHeaders = new Headers();
+  // myHeaders.append("Authorization", access_token);
 
-  fetch(HOST + "/api/user/basic", { headers: myHeaders })
+  var url = new URL(HOST + "/api/user/basic");
+
+  customFetcher(url)
     .then((r) => r.json())
     .then((result) => {
       if (result) {
@@ -984,3 +1006,266 @@ function getUserInfo() {
       }
     });
 }
+
+// const { fetch: originalFetch} = window;
+
+// fetch = async (...args) => {
+//   let [resource, config] = args;
+
+//   // request interceptor starts
+
+//   // request interceptor ends
+
+//   const response = await originalFetch(resource, config);
+//   if (response.status === 200) {
+//     return response;
+//   }
+
+//   if (response.status === 401) {
+//     // 401 error handling
+//     unAuthorizeErrorHandling(resource, config);
+//   }
+
+//   // response interceptor here
+// };
+
+var isRefreshing = false;
+
+// fetch = ((originalFetch) => {
+//   return (...arguments) => {
+//     let [resource, config] = arguments;
+//     if (resource.origin === HOST) {
+//       if (!config) {
+//         config = {};
+//       }
+//       if (!config.headers) {
+//         config.headers = {};
+//       }
+//       config.headers.Authorization = "Bearer " + access_token;
+//       arguments[1] = config;
+//     }
+//     return originalFetch.apply(this, arguments).then(async (response) => {
+//       if (response.status === 401) {
+//         // 401 error handling
+//         return unAuthorizeErrorHandling(response, arguments);
+//       } else return response;
+//     });
+//   };
+// })(fetch);
+
+// async function unAuthorizeErrorHandling(oldResponse, oldAguments) {
+//   console.log("401 UnAuthorize");
+//   console.log("oldAguments", oldAguments);
+
+//   await chrome.storage.sync.get("refreshToken", async function (result) {
+//     refreshToken = result.refreshToken;
+//     if (refreshToken && login == true) {
+//       isRefreshing = true;
+
+//       const data = {
+//         refreshToken: refreshToken,
+//       };
+
+//       var url = new URL(HOST + "/api/auth/refreshtoken");
+//       console.log("oldAguments", oldAguments);
+
+//       await fetch(url, {
+//         method: "POST",
+//         headers: {
+//           "Content-Type": "application/json",
+//           Accept: "application/json",
+//         },
+//         body: JSON.stringify(data),
+//       })
+//         /*         .catch((error) => {
+//           chrome.storage.sync.set({ refreshToken: null });
+//           chrome.storage.sync.set({ access_token: null });
+//           chrome.tabs.create({
+//             url: AUTH_URL,
+//             active: false,
+//           });
+//         }) */
+//         // .then(function (response) {
+//         //   return response.json();
+//         // })
+//         .then(async (result) => {
+//           if (result) {
+//             if (result.status == 200) {
+//               var data = await result.json();
+//               refreshToken = data.refreshToken;
+//               access_token = data.accessToken;
+//               chrome.storage.sync.set({ refreshToken: refreshToken });
+//               chrome.storage.sync.set({ access_token: access_token });
+//               isRefreshing = false;
+//               login = true;
+//               oldAguments[1] = {
+//                 headers: { Authorization: "Bearer " + access_token },
+//               };
+//               // const newResponse = await originalFetch.apply(this, arguments);
+//               let newResponse = await fetch(oldAguments[0], oldAguments[1]);
+//               return newResponse;
+//             } else {
+//               logoff();
+//               isRefreshing = false;
+//               return oldResponse;
+//             }
+//           }
+//         });
+//     }
+//   });
+// }
+/* 
+var isRefreshing = false;
+fetch = function () {
+  let self = this;
+  let args = arguments;
+  if (access_token != "" && access_token != null && args[0].origin == HOST) {
+    args[1] = { headers: { Authorization: "Bearer " + access_token } };
+  }
+  return originalFetch.apply(self, args).then(async function (data) {
+    if (data.status === 200) console.log("---------Status 200----------");
+    if (data.status === 401) {
+      // request for token with original fetch if status is 401
+      // if status is 401 from token api return empty response to close recursion
+      console.log("==========401 UnAuthorize.=============");
+      chrome.storage.sync.get("refreshToken", function (result) {
+        refreshToken = result.refreshToken;
+        if (refreshToken && !isRefreshing && login == true) {
+          isRefreshing = true;
+
+          const params = {
+            refreshToken: refreshToken,
+          };
+
+          var url = new URL(HOST + "/api/auth/refreshtoken");
+
+          url.search = new URLSearchParams(params).toString();
+
+          fetch(url, { method: "POST" })
+            .catch((error) => {
+              chrome.storage.sync.set({ refreshToken: null });
+              chrome.storage.sync.set({ access_token: null });
+              chrome.tabs.create({
+                url: AUTH_URL,
+                active: false,
+              });
+            })
+            .then((r) => r.json())
+            .then((result) => {
+              if (result) {
+                if (result.status == 400) {
+                  login = false;
+                  chrome.storage.sync.set({ refreshToken: null });
+                  chrome.storage.sync.set({ access_token: null });
+                  chrome.tabs.create({
+                    url: AUTH_URL,
+                    active: false,
+                  });
+                  isRefreshing = false;
+                } else {
+                  refreshToken = result.refreshToken;
+                  access_token = result.accessToken;
+                  chrome.storage.sync.set({ refreshToken: refreshToken });
+                  chrome.storage.sync.set({ access_token: accessToken });
+                  isRefreshing = false;
+                  login = true;
+                  return fetch(self, args);
+                }
+              }
+            });
+        }
+      });
+
+      // else set token
+      // recall old fetch
+      // here i used 200 because 401 or 404 old response will cause it to rerun
+      // return fetch(...args); <- change to this for real scenarios
+      // return fetch(args[0], args[1]); <- or to this for real sceaerios
+    }
+    // condition will be tested again after 401 condition and will be ran with old args
+    if (data.status === 404) {
+      console.log("==========404 Not Found.=============");
+      // here i used 200 because 401 or 404 old response will cause it to rerun
+      // return fetch(...args); <- change to this for real scenarios
+      // return fetch(args[0], args[1]); <- or to this for real scenarios
+      sceaerios;
+    } else {
+      return data;
+    }
+  });
+};
+ */
+
+let originalRequest = async (url, config) => {
+  let response = await fetch(url, config);
+  let data = await response.json();
+  console.log("REQUESTING:", data);
+  return { response, data };
+};
+
+let getRefreshToken = async () => {
+  let refreshToken = await readLocalStorage("refreshToken");
+
+  const data = {
+    refreshToken: refreshToken,
+  };
+
+  var url = new URL(HOST + "/api/auth/refreshtoken");
+
+  let response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  let json = await response.json();
+  return json.accessToken;
+};
+
+let customFetcher = async (url, config = {}) => {
+  // const user = jwt_decode(authTokens.access)
+  // const isExpired = dayjs.unix(user.exp).diff(dayjs()) < 1;
+
+  // if(isExpired){
+  //     authTokens = await refreshToken(authTokens)
+  // }
+
+  //Proceed with request
+
+  config["headers"] = {
+    Authorization: "Bearer " + access_token,
+  };
+
+  console.log("Before Request");
+  let { response, data } = await originalRequest(url, config);
+  console.log("After Request");
+
+  if (response.statusText === "Unauthorized") {
+    access_token = await getRefreshToken();
+
+    config["headers"] = {
+      Authorization: "Bearer " + access_token,
+    };
+
+    let newResponse = await originalRequest(url, config);
+    response = newResponse.response;
+    data = newResponse.data;
+  }
+
+  return { response, data };
+};
+
+const readLocalStorage = async (key) => {
+  return new Promise((resolve, reject) => {
+    chrome.storage.sync.get([key], function (result) {
+      if (result[key] === undefined) {
+        reject();
+      } else {
+        resolve(result[key]);
+      }
+    });
+  });
+};
