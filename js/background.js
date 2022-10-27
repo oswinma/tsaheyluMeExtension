@@ -960,7 +960,7 @@ function sendURLRequest(tome, toall, groupids, surl, tabid, urltitle, iconurl) {
 
   customFetcher(url, { method: "POST" })
     .then((r) => {
-      if (r.response.status == 200) {
+      if (r.response.status == 201) {
         return r.data;
       }
     })
